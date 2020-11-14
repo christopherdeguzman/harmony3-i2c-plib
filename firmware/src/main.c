@@ -68,13 +68,15 @@ typedef enum {
 
 
 void APP_SW1_Callback(GPIO_PIN pin, uintptr_t context) {
-    if (memcmp(&txData[2], &rxData[0], RX_DATA_LENGTH) != 0) {
-        LED1_Set();
-    } else {
-        LED2_Set();
+    APP_STATES* state = (APP_STATES*) context;
+    
+    if (SW1_Get() == SW1_PRESSED) {
+        if (*state == APP_STATE_IDLE) {
+            *state = APP_STATE_EEPROM_READ;
+        }
     }
 
-    LED3_Set();
+    
 }
 
 void APP_I2C_Callback(uintptr_t context) {
@@ -100,14 +102,14 @@ void APP_I2C_Callback(uintptr_t context) {
 
 int main ( void )
 {
-    APP_STATES state = APP_STATE_EEPROM_WRITE;
+    volatile APP_STATES state = APP_STATE_EEPROM_WRITE;
     volatile APP_TRANSFER_STATUS transferStatus = APP_TRANSFER_STATUS_ERROR;
     uint8_t ackData = 0;
     
     /* Initialize all modules */
     SYS_Initialize ( NULL );
     
-    GPIO_PinInterruptCallbackRegister(SW1_PIN, APP_SW1_Callback, 0);
+    GPIO_PinInterruptCallbackRegister(SW1_PIN, APP_SW1_Callback, (uintptr_t) &state);
     GPIO_PinInterruptEnable(SW1_PIN);
     
     I2C1_CallbackRegister(APP_I2C_Callback, (uintptr_t) &transferStatus);    
@@ -139,7 +141,7 @@ int main ( void )
             case APP_STATE_EEPROM_CHECK_INTERNAL_WRITE_STATUS:
 
                 if (transferStatus == APP_TRANSFER_STATUS_SUCCESS) {
-                    state = APP_STATE_EEPROM_READ;
+                    state = APP_STATE_IDLE; //APP_STATE_EEPROM_READ;
                 } else if (transferStatus == APP_TRANSFER_STATUS_ERROR) {
                     /* EEPROM's internal write cycle is not complete. Keep checking. */
                     transferStatus = APP_TRANSFER_STATUS_IN_PROGRESS;
@@ -149,10 +151,24 @@ int main ( void )
                 
             case APP_STATE_EEPROM_READ:
                 
+                transferStatus = APP_TRANSFER_STATUS_IN_PROGRESS;
+                
                 I2C1_WriteRead(EEPROM_CLIENT_ADDR, &txData[0], 2, &rxData[0], RX_DATA_LENGTH);
-                LED3_Set();
-                state = APP_STATE_IDLE;
+                state = APP_STATE_VERIFY;
                 break;
+                
+            case APP_STATE_VERIFY:
+                if (transferStatus == APP_TRANSFER_STATUS_SUCCESS) {
+                    if (memcmp(&txData[2], &rxData[0], RX_DATA_LENGTH) != 0) {
+                        LED1_Set();
+                        state = APP_STATE_XFER_ERROR;
+                    } else {
+                        LED2_Set();
+                        printf("Received Data: %s\r\n", &rxData[0]);
+                        state = APP_STATE_IDLE;
+                    }
+                } 
+
             default:
                 break;
         }

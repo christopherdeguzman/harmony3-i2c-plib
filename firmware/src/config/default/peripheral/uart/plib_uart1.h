@@ -1,14 +1,14 @@
 /*******************************************************************************
- Debug Console Source file
+  UART1 PLIB
 
   Company:
     Microchip Technology Inc.
 
   File Name:
-    xc32_monitor.c
+    plib_uart1.h
 
   Summary:
-    debug console Source File
+    UART1 PLIB Header File
 
   Description:
     None
@@ -16,7 +16,7 @@
 *******************************************************************************/
 
 /*******************************************************************************
-* Copyright (C) 2018 Microchip Technology Inc. and its subsidiaries.
+* Copyright (C) 2019 Microchip Technology Inc. and its subsidiaries.
 *
 * Subject to your compliance with these terms, you may use Microchip software
 * and any derivatives exclusively with Microchip products. It is your
@@ -38,26 +38,59 @@
 * THAT YOU HAVE PAID DIRECTLY TO MICROCHIP FOR THIS SOFTWARE.
 *******************************************************************************/
 
-#include "definitions.h"
+#ifndef PLIB_UART1_H
+#define PLIB_UART1_H
 
-#ifdef __arm__
-/* Declaration of these functions are missing in stdio.h for ARM parts*/
-int _mon_getc(int canblock);
-void _mon_putc(char c);
-#endif //__arm__
+#include <stddef.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include "device.h"
+#include "plib_uart_common.h"
 
-int _mon_getc(int canblock)
-{
-   volatile int c = 0;
-   while(UART1_Read((void*)&c, 1) != true);
-   return c;
-}
+// DOM-IGNORE-BEGIN
+#ifdef __cplusplus  // Provide C++ Compatibility
 
-void _mon_putc(char c)
-{
-   uint8_t size = 0;
-   do
-   {
-       size = UART1_Write((void*)&c, 1);
-   }while (size != 1);
-}
+    extern "C" {
+
+#endif
+// DOM-IGNORE-END
+
+// *****************************************************************************
+// *****************************************************************************
+// Section: Interface
+// *****************************************************************************
+// *****************************************************************************
+
+#define UART1_FrequencyGet()    (uint32_t)(48000000UL)
+
+/****************************** UART1 API *********************************/
+
+void UART1_Initialize( void );
+
+bool UART1_SerialSetup( UART_SERIAL_SETUP *setup, uint32_t srcClkFreq );
+
+bool UART1_Write( void *buffer, const size_t size );
+
+bool UART1_Read( void *buffer, const size_t size );
+
+UART_ERROR UART1_ErrorGet( void );
+
+int UART1_ReadByte( void );
+
+bool UART1_ReceiverIsReady( void );
+
+void UART1_WriteByte( int data );
+
+bool UART1_TransmitterIsReady( void );
+
+bool UART1_TransmitComplete( void );
+
+// DOM-IGNORE-BEGIN
+#ifdef __cplusplus  // Provide C++ Compatibility
+
+    }
+
+#endif
+// DOM-IGNORE-END
+
+#endif // PLIB_UART1_H
